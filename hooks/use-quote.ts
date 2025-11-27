@@ -39,5 +39,5 @@ export function useQuote() {
     }
   }
 
-  return { loading, quote };
+  return { loading, quote, getQuote };
 }
