@@ -1,5 +1,7 @@
 import { useQuote } from "@/hooks/use-quote";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { useEffect } from "react";
+import { ActivityIndicator, Dimensions, StyleSheet, Text, View } from "react-native";
 import {
   Gesture,
   GestureDetector,
@@ -9,53 +11,78 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
+  withTiming
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
+
+const { width } = Dimensions.get("window");
 
 export default function Index() {
   const { loading, quote, getQuote } = useQuote();
 
-  const translateY = useSharedValue(0);
+  const translateX = useSharedValue(0);
+  const opacity = useSharedValue(1);
+
+  // Reset animation state when loading starts
+  useEffect(() => {
+    if (loading) {
+      translateX.value = 0;
+      opacity.value = 1;
+    }
+  }, [loading]);
 
   const panGesture = Gesture.Pan()
     .onUpdate((event) => {
-      if (event.translationY > 0) {
-        translateY.value = Math.min(event.translationY, 100); // restricting the swipe down to 100px only
+      // Only allow swiping to the left, if it would be greater then 0, it would go to right 
+      if (event.translationX < 0) {
+        translateX.value = event.translationX;
+        // Adding fading out effect ( copied the formula )
+        opacity.value = 1 - Math.abs(event.translationX) / (width / 2);
       }
     })
     .onEnd(() => {
-      if (translateY.value > 50) {
-        translateY.value = withSpring(0);
-        scheduleOnRN(getQuote); // Our gesture callback runs on reanimated worklet thread and we can't run normal JS function from there
-
-        // getQuote() => It would crash the app because we are on reanimated thread while the gesture function is running so we have to schedule it to run on react native thread
+      if (translateX.value < -100) {
+        // Swiped enough to trigger new quote
+        translateX.value = withTiming(-width, {}, () => {
+            // Reset position instantly after animation
+            scheduleOnRN(getQuote);
+        });
+      } else {
+        // Didn't swipe enough, spring back
+        translateX.value = withSpring(0);
+        opacity.value = withSpring(1);
       }
     });
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
-      transform: [{ translateY: translateY.value }],
+      transform: [{ translateX: translateX.value }],
+      opacity: opacity.value,
     };
   });
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <View style={styles.container}>
+      <LinearGradient
+        colors={["#0a7eb8ff", "#3a1477ff"]}
+        style={styles.container}
+      >
         {loading ? (
-          <View>
-            <ActivityIndicator size="large" color="#231c1cff" />
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#ffffff" />
           </View>
         ) : (
           <GestureDetector gesture={panGesture}>
-            <Animated.View style={animatedStyle}>
-              <Text style={styles.quote}>{quote?.quote}</Text>
+            <Animated.View style={[styles.quoteContainer, animatedStyle]}>
+              <Text style={styles.quote}>"{quote?.quote}"</Text>
               <Text style={styles.author}>
-                {quote?.author && `~ ${quote.author}`}
+                {quote?.author && `- ${quote.author}`}
               </Text>
+              <Text style={styles.hint}>Swipe left for new quote</Text>
             </Animated.View>
           </GestureDetector>
         )}
-      </View>
+      </LinearGradient>
     </GestureHandlerRootView>
   );
 }
@@ -67,13 +94,38 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  quoteContainer: {
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    padding: 30,
+    borderRadius: 20,
+    width: "100%",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+  },
   quote: {
     textAlign: "center",
     fontWeight: "700",
-    fontSize: 20,
+    fontSize: 24,
+    color: "#ffffff",
+    marginBottom: 20,
+    lineHeight: 32,
   },
   author: {
     fontStyle: "italic",
     textAlign: "center",
+    color: "#e0e0e0",
+    fontSize: 18,
+    marginBottom: 30,
+  },
+  hint: {
+    color: "rgba(255, 255, 255, 0.3)",
+    fontSize: 12,
+    marginTop: 10,
   },
 });
