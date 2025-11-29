@@ -1,7 +1,13 @@
 import { useQuote } from "@/hooks/use-quote";
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect } from "react";
-import { ActivityIndicator, Dimensions, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Dimensions,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import {
   Gesture,
   GestureDetector,
@@ -11,7 +17,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
-  withTiming
+  withTiming,
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 
@@ -33,7 +39,7 @@ export default function Index() {
 
   const panGesture = Gesture.Pan()
     .onUpdate((event) => {
-      // Only allow swiping to the left, if it would be greater then 0, it would go to right 
+      // Only allow swiping to the left, if it would be greater then 0, it would go to right
       if (event.translationX < 0) {
         translateX.value = event.translationX;
         // Adding fading out effect ( copied the formula )
@@ -44,8 +50,8 @@ export default function Index() {
       if (translateX.value < -100) {
         // Swiped enough to trigger new quote
         translateX.value = withTiming(-width, {}, () => {
-            // Reset position instantly after animation
-            scheduleOnRN(getQuote);
+          // Reset position instantly after animation
+          scheduleOnRN(getQuote);
         });
       } else {
         // Didn't swipe enough, spring back
@@ -74,7 +80,7 @@ export default function Index() {
         ) : (
           <GestureDetector gesture={panGesture}>
             <Animated.View style={[styles.quoteContainer, animatedStyle]}>
-              <Text style={styles.quote}>"{quote?.quote}"</Text>
+              <Text style={styles.quote}>{quote?.quote}</Text>
               <Text style={styles.author}>
                 {quote?.author && `- ${quote.author}`}
               </Text>
